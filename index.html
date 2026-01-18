@@ -2,86 +2,154 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Hehebank</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hehebank: Ultimate Control</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-:root {
-  --bg: #f0f2f5;
-  --card: #ffffff;
-  --accent: #4caf50;
-  --danger: #f44336;
-  --text: #111;
-  --muted: #555;
-}
+:root { --bg: #05070a; --card: #111827; --accent: #10b981; --danger: #ef4444; --text: #f8fafc; --admin-gold: #fbbf24; }
+body { margin:0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color:var(--text); padding:10px; }
+.container { max-width: 550px; margin: 0 auto; }
+.card { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #1f2937; }
+input, button { width:100%; padding:10px; margin-top:5px; border-radius:6px; border:none; font-size:14px; box-sizing: border-box; }
+button { background: var(--accent); color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
+button:active { transform: scale(0.98); }
+.secondary { background: #4b5563; }
+.danger { background: var(--danger); }
+.balance { font-size: 28px; font-weight: 800; color: #34d399; margin: 10px 0; }
+.small { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.hidden { display: none; }
+.stock-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+canvas { max-height: 100px; margin-top: 10px; }
+.history { max-height: 150px; overflow-y: auto; font-size: 12px; list-style: none; padding: 0; border-top: 1px solid #334155; }
+.history li { padding: 5px 0; border-bottom: 1px solid #334155; }
 
-* { box-sizing: border-box; }
-body { margin:0; font-family:system-ui, Arial,sans-serif; background: var(--bg); color:var(--text); min-height:100vh; display:flex; justify-content:center; padding:20px; }
-.container { width:100%; max-width:420px; }
-h1 { text-align:center; margin-bottom:20px; }
-.card { background:var(--card); border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 5px 15px rgba(0,0,0,0.1); }
-input, button { width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid #ccc; font-size:14px; }
-button { background: var(--accent); color:#fff; font-weight:600; border:none; cursor:pointer; }
-button.secondary { background:#e0e0e0; color: var(--text); }
-button.danger { background: var(--danger); color:#fff; }
-.balance { font-size:26px; font-weight:bold; margin:10px 0; }
-.small { color:var(--muted); font-size:13px; }
-.hidden { display:none; }
-.history { max-height:120px; overflow-y:auto; font-size:13px; list-style:none; padding:0; }
-.history li { margin-bottom:6px; border-bottom:1px solid #eee; padding-bottom:2px; }
-.admin { border:1px solid var(--danger); }
+/* Улучшенные стили админки */
+#adminPanel { border: 2px solid var(--admin-gold); background: #000; }
+.adm-section { border-bottom: 1px solid #222; padding: 10px 0; margin-bottom: 5px; }
+.adm-row { display: flex; gap: 5px; align-items: center; margin-top: 5px; }
+.adm-row input { margin-top: 0; flex: 2; background: #111; color: #fff; border: 1px solid #333; }
+.adm-row button { margin-top: 0; flex: 1; font-size: 12px; padding: 8px; }
+.adm-title { color: var(--admin-gold); font-weight: 900; margin-bottom: 10px; text-align: center; border-bottom: 1px solid var(--admin-gold); padding-bottom: 5px; }
+.adm-label { font-size: 10px; color: #666; display: block; margin-bottom: 2px; }
 </style>
 </head>
 <body>
+
 <div class="container">
-<h1>🏦 Hehebank</h1>
+    <div id="auth" class="card">
+        <h1>🏦 Hehebank v2.6</h1>
+        <input id="loginField" placeholder="Логин">
+        <input id="passwordField" type="password" placeholder="Пароль">
+        <button onclick="loginUser()">Войти</button>
+        <button class="secondary" onclick="registerUser()">Регистрация</button>
+    </div>
 
-<div id="auth" class="card">
-  <input id="loginField" placeholder="Логин">
-  <input id="passwordField" type="password" placeholder="Пароль">
-  <button onclick="loginUser()">Войти</button>
-  <button class="secondary" onclick="registerUser()">Регистрация</button>
-  <button class="secondary" onclick="loginNoPass()">Без пароля</button>
-</div>
+    <div id="bank" class="hidden">
+        <div class="card">
+            <div id="userDisplay" class="small"></div>
+            <div class="balance"><span id="balance">0</span> $</div>
+            <div id="bonusText" class="small">Бонус клика: +$1</div>
+            <button onclick="clickMoney()">💰 ЗАРАБОТАТЬ</button>
+        </div>
 
-<div id="bank" class="hidden">
-  <div class="card">
-    <div class="small" id="userTitle"></div>
-    <div class="balance"><span id="balance">0</span> $</div>
-    <button onclick="clickMoney()">💰 Клик = $1</button>
-  </div>
+        <div class="card">
+            <div class="small">📉 РЫНОК</div>
+            <select id="stockSelector" onchange="updateChartDisplay()" style="width:100%; padding:10px; background:#1e293b; color:white; border-radius:8px; margin-top:10px;">
+                <option value="mapple">Mapple (🍎)</option>
+                <option value="mycrohard">Mycrohard (🖥️)</option>
+                <option value="colacoko">ColaCoko (🥤)</option>
+            </select>
+            <canvas id="stockChart"></canvas>
+            <div class="balance" style="font-size: 20px;">Курс: <span id="currentStockPrice">0</span> $</div>
+            <div class="stock-grid">
+                <button onclick="trade('buyAll')">Купить Max</button>
+                <button class="danger" onclick="trade('sellAll')">Продать всё</button>
+            </div>
+        </div>
 
-  <div class="card">
-    <div class="small">Перевод</div>
-    <input id="toUser" placeholder="Кому">
-    <input id="amount" type="number" placeholder="Сумма">
-    <button onclick="transfer()">Отправить</button>
-  </div>
+        <div class="card">
+            <div class="small">🏠 НЕДВИЖИМОСТЬ</div>
+            <button class="secondary" onclick="buyHouse('village', 1000)">Село ($1k)</button>
+            <button class="secondary" onclick="buyHouse('capital', 10000)">Столица ($10k)</button>
+            <button class="secondary" onclick="buyHouse('moscow', 100000)">Москва ($100k)</button>
+            <button class="secondary" onclick="buyHouse('dubai', 1000000)">Дубай ($1M)</button>
+        </div>
 
-  <div class="card">
-    <div class="small">Кредиты</div>
-    <input id="loanAmount" type="number" placeholder="Сумма кредита">
-    <input id="loanInterest" type="number" placeholder="Процент (%)">
-    <button onclick="takeLoan()">Взять кредит</button>
-    <ul id="loansList" class="history"></ul>
-  </div>
+        <div class="card">
+            <div class="small">📜 ЛОГИ</div>
+            <ul id="historyList" class="history"></ul>
+            <button class="secondary" onclick="logout()" style="margin-top:10px;">ВЫХОД</button>
+        </div>
+    </div>
 
-  <div class="card">
-    <div class="small">История операций</div>
-    <ul id="historyList" class="history"></ul>
-  </div>
+    <div id="adminPanel" class="card hidden">
+        <div class="adm-title">OVERLORD CONTROL PANEL</div>
+        
+        <div class="adm-section">
+            <span class="adm-label">УПРАВЛЕНИЕ ДЕНЬГАМИ</span>
+            <div class="adm-row">
+                <input id="adm_money_uid" placeholder="UID игрока">
+                <input id="adm_money_amt" type="number" placeholder="Сумма">
+                <button onclick="ovl('giveMoney')">ВЫДАТЬ</button>
+            </div>
+            <div class="adm-row">
+                <input id="adm_set_uid" placeholder="UID игрока">
+                <input id="adm_set_amt" type="number" placeholder="Точный баланс">
+                <button class="danger" onclick="ovl('setBalance')">SET</button>
+            </div>
+        </div>
 
-  <button class="secondary" onclick="logout()">Выйти</button>
-</div>
+        <div class="adm-section">
+            <span class="adm-label">БЕЗОПАСНОСТЬ</span>
+            <div class="adm-row">
+                <input id="adm_ban_uid" placeholder="UID игрока">
+                <button class="danger" onclick="ovl('ban')">БАН / РАЗБАН</button>
+            </div>
+            <div class="adm-row">
+                <input id="adm_pass_uid" placeholder="UID игрока">
+                <input id="adm_pass_new" placeholder="Новый пароль">
+                <button onclick="ovl('changePass')">СМЕНИТЬ</button>
+            </div>
+        </div>
 
-<div id="adminPanel" class="card admin hidden">
-  <div class="small">👑 Админ-панель</div>
-  <button onclick="becomeMillionaire()">Стать миллионером</button>
-  <input id="adminUser" placeholder="Пользователь">
-  <input id="adminAmount" type="number" placeholder="Сумма">
-  <button onclick="giveMoney()">Дать деньги</button>
-  <button class="danger" onclick="takeMoney()">Отобрать деньги</button>
-  <button class="secondary" onclick="showAll()">Показать базу (JSON)</button>
-  <pre id="allUsers" class="small" style="background:#eee; padding:5px; margin-top:10px;"></pre>
-</div>
+        <div class="adm-section">
+            <span class="adm-label">МАНИПУЛЯЦИЯ РЫНКОМ (ВЫБРАННЫЙ ТИКЕР)</span>
+            <div class="stock-grid">
+                <button onclick="ovl('pump')">🚀 ПАМП x2</button>
+                <button class="danger" onclick="ovl('dump')">📉 ДАМП x0.5</button>
+                <button class="danger" onclick="ovl('crash')">💀 ОБНУЛИТЬ КУРС</button>
+            </div>
+        </div>
+
+        <div class="adm-section">
+            <span class="adm-label">ГЕЙМПЛЕЙ</span>
+            <div class="adm-row">
+                <input id="adm_bonus_uid" placeholder="UID игрока">
+                <input id="adm_bonus_val" type="number" placeholder="+ за клик">
+                <button onclick="ovl('setBonus')">УСТАНОВИТЬ</button>
+            </div>
+        </div>
+
+        <div class="adm-section">
+            <span class="adm-label">СИСТЕМНЫЕ УВЕДОМЛЕНИЯ</span>
+            <div class="adm-row">
+                <input id="adm_msg_uid" placeholder="UID (или 'all')">
+                <input id="adm_msg_txt" placeholder="Текст сообщения">
+                <button onclick="ovl('msg')">ОТПРАВИТЬ</button>
+            </div>
+        </div>
+
+        <div class="adm-section">
+            <span class="adm-label" style="color:red">OP ZONE</span>
+            <div class="stock-grid">
+                <button class="danger" onclick="ovl('taxDay')">💸 НАЛОГ 20% (ВСЕ)</button>
+                <button class="danger" onclick="ovl('armageddon')">☢️ АРМАГЕДДОН</button>
+            </div>
+            <button class="secondary" style="margin-top:5px" onclick="ovl('audit')">🔍 ПОЛНЫЙ ДАМП БАЗЫ (JSON)</button>
+        </div>
+
+        <pre id="adm_out" style="background:#000; color:#0f0; font-size:10px; padding:8px; margin-top:10px; border:1px solid #333; max-height:80px; overflow:auto;"></pre>
+    </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
@@ -90,142 +158,179 @@ button.danger { background: var(--danger); color:#fff; }
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyAJtR-ua4GFV7CNwrpeQZLm4W7MuIVjdlE",
-  authDomain: "hehebank-2a84f.firebaseapp.com",
   databaseURL: "https://hehebank-2a84f-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "hehebank-2a84f",
-  storageBucket: "hehebank-2a84f.firebasestorage.app",
-  messagingSenderId: "85658810632",
-  appId: "1:85658810632:web:a519c82b19039ffc9e14bd"
+  projectId: "hehebank-2a84f"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
 let current = null;
+let prices = { mapple: 100, mycrohard: 150, colacoko: 50 };
+let chartData = { mapple: [100], mycrohard: [150], colacoko: [50] };
 
-async function getAllUsers() {
-  const snapshot = await db.ref('users').once('value');
-  return snapshot.val() || {};
-}
+const ctx = document.getElementById('stockChart').getContext('2d');
+const myChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'Цена', data: [], borderColor: '#10b981', borderWidth: 2, pointRadius: 0, fill: false }] },
+    options: { scales: { x: { display: false }, y: { grid: { color: '#1f2937' } } }, plugins: { legend: { display: false } } }
+});
 
-// Регистрация
-async function registerUser(){
-  const l = loginField.value.trim();
-  const p = passwordField.value;
-  if(!l || !p) return alert("Заполните поля");
-  const users = await getAllUsers();
-  if(users[l]) return alert("Пользователь уже существует");
-  await db.ref('users/' + l).set({password:p, balance:0, history:["Аккаунт создан"], loans:[]});
-  alert("Регистрация успешна!");
-}
-
-// Вход
-async function loginUser(){
-  const l = loginField.value.trim();
-  const p = passwordField.value;
-  const users = await getAllUsers();
-  if(!users[l] || (users[l].password && p && users[l].password !== p)){
-    alert("Неверный логин или пароль");
-    return;
-  }
-  current = l;
-  document.getElementById("auth").classList.add("hidden");
-  document.getElementById("bank").classList.remove("hidden");
-  document.getElementById("userTitle").textContent = "Пользователь: " + current;
-  if(current==="admin") document.getElementById("adminPanel").classList.remove("hidden");
-  db.ref('users/' + current).on('value', snapshot => render(snapshot.val()));
+async function loginUser() {
+    const l = loginField.value.trim(), p = passwordField.value;
+    const s = await db.ref('users/' + l).once('value');
+    if(!s.exists() || s.val().password !== p) return alert("Ошибка");
+    if(s.val().isBanned) return alert("BANNED");
+    current = l;
+    auth.classList.add("hidden"); bank.classList.remove("hidden");
+    if(current === 'admin') adminPanel.classList.remove("hidden");
+    db.ref('users/' + current).on('value', snap => render(snap.val()));
 }
 
-// Вход без пароля
-async function loginNoPass(){
-  const l = loginField.value.trim();
-  const users = await getAllUsers();
-  if(!users[l]) return alert("Пользователя нет");
-  current = l;
-  document.getElementById("auth").classList.add("hidden");
-  document.getElementById("bank").classList.remove("hidden");
-  document.getElementById("userTitle").textContent = "Пользователь: " + current;
-  if(current==="admin") document.getElementById("adminPanel").classList.remove("hidden");
-  db.ref('users/' + current).on('value', snapshot => render(snapshot.val()));
+async function registerUser() {
+    const l = loginField.value.trim(), p = passwordField.value;
+    const s = await db.ref('users/' + l).once('value');
+    if(s.exists()) return alert("Занято");
+    await db.ref('users/' + l).set({password:p, balance:500, history:["Start"], stocks:{mapple:{q:0,avg:0},mycrohard:{q:0,avg:0},colacoko:{q:0,avg:0}}, houses:[], clickBonus:1});
+    alert("OK");
 }
 
-// Отображение данных
-function render(data){
-  document.getElementById("balance").textContent = data.balance;
-  const historyList = document.getElementById("historyList");
-  historyList.innerHTML = "";
-  if(data.history) data.history.slice().reverse().forEach(h=>{
-    const li = document.createElement("li"); li.textContent = h; historyList.appendChild(li);
-  });
-  const loansList = document.getElementById("loansList");
-  loansList.innerHTML = "";
-  if(data.loans) data.loans.forEach(l=>{
-    const li = document.createElement("li");
-    li.textContent = `💸 ${l.amount}$ (Процент: ${l.interest}%)`;
-    loansList.appendChild(li);
-  });
+function render(d) {
+    if(!d) return;
+    balance.textContent = Math.floor(d.balance).toLocaleString();
+    userDisplay.textContent = `USER: ${current}`;
+    let b = d.clickBonus || 1;
+    if(d.houses?.includes('village')) b += 2;
+    if(d.houses?.includes('capital')) b += 10;
+    if(d.houses?.includes('moscow')) b += 50;
+    if(d.houses?.includes('dubai')) b += 200;
+    bonusText.textContent = `Клик: +$${b}`;
+    historyList.innerHTML = "";
+    d.history?.slice(-10).reverse().forEach(h => {
+        const li = document.createElement("li"); li.textContent = h; historyList.appendChild(li);
+    });
 }
 
-// Кликер
-async function clickMoney(){
-  const ref = db.ref('users/' + current);
-  const snap = await ref.once('value');
-  const data = snap.val();
-  data.balance++; data.history.push("+1$ (клик)");
-  await ref.set(data);
+function clickMoney() {
+    db.ref('users/' + current).once('value', s => {
+        let u = s.val();
+        let b = u.clickBonus || 1;
+        if(u.houses?.includes('village')) b += 2;
+        if(u.houses?.includes('capital')) b += 10;
+        if(u.houses?.includes('moscow')) b += 50;
+        if(u.houses?.includes('dubai')) b += 200;
+        db.ref('users/' + current + '/balance').set(u.balance + b);
+    });
 }
 
-// Переводы
-async function transfer(){
-  const to = toUser.value.trim();
-  const amountVal = parseInt(amount.value);
-  const users = await getAllUsers();
-  if(!users[to] || amountVal <=0 || users[current].balance<amountVal) return alert("Ошибка перевода");
-  users[current].balance -= amountVal; users[current].history.push(`-${amountVal}$ → ${to}`);
-  users[to].balance += amountVal; users[to].history.push(`+${amountVal}$ ← ${current}`);
-  await db.ref('users/' + current).set(users[current]);
-  await db.ref('users/' + to).set(users[to]);
+setInterval(() => {
+    for (let s in prices) {
+        prices[s] = Math.max(1, prices[s] + (prices[s] * ((Math.random() > 0.48 ? -1 : 1) * (Math.random() * 0.03))));
+        chartData[s].push(prices[s]);
+        if(chartData[s].length > 20) chartData[s].shift();
+    }
+    updateChartDisplay();
+}, 4000);
+
+function updateChartDisplay() {
+    const s = stockSelector.value;
+    currentStockPrice.textContent = prices[s].toFixed(2);
+    myChart.data.labels = chartData[s].map((_, i) => i);
+    myChart.data.datasets[0].data = chartData[s];
+    myChart.update('none');
 }
 
-// Кредиты
-async function takeLoan(){
-  const amt = parseInt(loanAmount.value);
-  const pct = parseInt(loanInterest.value);
-  if(!amt || !pct) return alert("Введите сумму и процент");
-  const ref = db.ref('users/' + current);
-  const snap = await ref.once('value'); const data = snap.val();
-  data.balance += amt;
-  if(!data.loans) data.loans = [];
-  data.loans.push({amount: amt, interest: pct});
-  data.history.push(`💰 Взял кредит: ${amt}$ под ${pct}%`);
-  await ref.set(data);
+async function trade(type) {
+    const s = stockSelector.value;
+    const ref = db.ref('users/' + current);
+    const snap = await ref.once('value'); let u = snap.val();
+    const curP = prices[s];
+    if(type === 'buyAll') {
+        let q = Math.floor(u.balance / curP);
+        if(q <= 0) return;
+        u.stocks[s].avg = ((u.stocks[s].q * u.stocks[s].avg) + (q * curP)) / (u.stocks[s].q + q);
+        u.stocks[s].q += q; u.balance -= (q * curP);
+    } else {
+        if(u.stocks[s].q <= 0) return;
+        u.balance += u.stocks[s].q * curP; u.stocks[s].q = 0;
+    }
+    ref.set(u);
 }
 
-// Админ-функции
-async function becomeMillionaire(){
-  const ref = db.ref('users/' + current);
-  const snap = await ref.once('value'); const data = snap.val();
-  data.balance = 1000000; data.history.push("💎 Стал миллионером");
-  await ref.set(data);
+async function buyHouse(id, c) {
+    const ref = db.ref('users/' + current);
+    const snap = await ref.once('value'); let u = snap.val();
+    if(u.balance >= c && !u.houses?.includes(id)) {
+        u.balance -= c; if(!u.houses) u.houses = []; u.houses.push(id);
+        ref.set(u);
+    }
 }
-async function giveMoney(){
-  const user = adminUser.value.trim(); const amt = parseInt(adminAmount.value);
-  if(!user || !amt) return;
-  const snap = await db.ref('users/' + user).once('value'); const data = snap.val();
-  data.balance += amt; data.history.push(`+${amt}$ от админа`);
-  await db.ref('users/' + user).set(data);
+
+// --- 👑 ЛОГИКА ПАНЕЛИ АДМИНИСТРАТОРА ---
+async function ovl(action) {
+    const out = document.getElementById("adm_out");
+    out.innerText = "Processing...";
+    
+    const ticker = stockSelector.value;
+
+    if(action === 'giveMoney') {
+        const u = document.getElementById('adm_money_uid').value;
+        const a = parseInt(document.getElementById('adm_money_amt').value);
+        await db.ref('users/'+u+'/balance').transaction(b => (b||0)+a);
+        await db.ref('users/'+u+'/history').push(`🎁 ADMIN: +$${a}`);
+    } 
+    else if(action === 'setBalance') {
+        const u = document.getElementById('adm_set_uid').value;
+        const a = parseInt(document.getElementById('adm_set_amt').value);
+        await db.ref('users/'+u+'/balance').set(a);
+    }
+    else if(action === 'ban') {
+        const u = document.getElementById('adm_ban_uid').value;
+        const s = await db.ref('users/'+u+'/isBanned').once('value');
+        await db.ref('users/'+u+'/isBanned').set(!s.val());
+    }
+    else if(action === 'changePass') {
+        const u = document.getElementById('adm_pass_uid').value;
+        const p = document.getElementById('adm_pass_new').value;
+        await db.ref('users/'+u+'/password').set(p);
+    }
+    else if(action === 'setBonus') {
+        const u = document.getElementById('adm_bonus_uid').value;
+        const v = parseInt(document.getElementById('adm_bonus_val').value);
+        await db.ref('users/'+u+'/clickBonus').set(v);
+    }
+    else if(action === 'msg') {
+        const u = document.getElementById('adm_msg_uid').value;
+        const t = document.getElementById('adm_msg_txt').value;
+        if(u === 'all') {
+            const all = await db.ref('users').once('value');
+            all.forEach(c => db.ref('users/'+c.key+'/history').push("📢 "+t));
+        } else {
+            await db.ref('users/'+u+'/history').push("📢 "+t);
+        }
+    }
+    else if(action === 'pump') { prices[ticker] *= 2; updateChartDisplay(); }
+    else if(action === 'dump') { prices[ticker] *= 0.5; updateChartDisplay(); }
+    else if(action === 'crash') { prices[ticker] = 1; updateChartDisplay(); }
+    else if(action === 'taxDay') {
+        const all = await db.ref('users').once('value');
+        all.forEach(c => db.ref('users/'+c.key+'/balance').transaction(b => b*0.8));
+        alert("Налог 20% собран");
+    }
+    else if(action === 'armageddon') {
+        if(confirm("ОБНУЛИТЬ ВСЕХ?")) {
+            const all = await db.ref('users').once('value');
+            all.forEach(c => { if(c.key !== 'admin') db.ref('users/'+c.key+'/balance').set(0); });
+        }
+    }
+    else if(action === 'audit') {
+        const all = await db.ref('users').once('value');
+        out.innerText = JSON.stringify(all.val(), null, 2);
+        return;
+    }
+    out.innerText = "SUCCESS: " + action;
 }
-async function takeMoney(){
-  const user = adminUser.value.trim(); const amt = parseInt(adminAmount.value);
-  if(!user || !amt) return;
-  const snap = await db.ref('users/' + user).once('value'); const data = snap.val();
-  data.balance -= amt; data.history.push(`-${amt}$ админ забрал`);
-  await db.ref('users/' + user).set(data);
-}
-async function showAll(){
-  const users = await getAllUsers();
-  document.getElementById("allUsers").textContent = JSON.stringify(users, null,2);
-}
-function logout(){ location.reload(); }
+
+function logout() { location.reload(); }
 </script>
 </body>
-  </html>
+</html>
