@@ -1,1 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Hehebank</title>
+<style>
+:root {
+  --bg: #f0f2f5;
+  --card: #ffffff;
+  --accent: #4caf50;
+  --danger: #f44336;
+  --text: #111;
+  --muted: #555;
+}
 
+* { box-sizing: border-box; }
+body { margin:0; font-family:system-ui, Arial,sans-serif; background: var(--bg); color:var(--text); min-height:100vh; display:flex; justify-content:center; padding:20px; }
+.container { width:100%; max-width:420px; }
+h1 { text-align:center; margin-bottom:20px; }
+.card { background:var(--card); border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 5px 15px rgba(0,0,0,0.1); }
+input, button { width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid #ccc; font-size:14px; }
+button { background: var(--accent); color:#fff; font-weight:600; border:none; cursor:pointer; }
+button.secondary { background:#e0e0e0; color: var(--text); }
+button.danger { background: var(--danger); color:#fff; }
+.balance { font-size:26px; font-weight:bold; margin:10px 0; }
+.small { color:var(--muted); font-size:13px; }
+.hidden { display:none; }
+.history { max-height:120px; overflow-y:auto; font-size:13px; list-style:none; padding:0; }
+.history li { margin-bottom:6px; border-bottom:1px solid #eee; padding-bottom:2px; }
+.admin { border:1px solid var(--danger); }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🏦 Hehebank</h1>
+
+<div id="auth" class="card">
+  <input id="loginField" placeholder="Логин">
+  <input id="passwordField" type="password" placeholder="Пароль">
+  <button onclick="loginUser()">Войти</button>
+  <button class="secondary" onclick="registerUser()">Регистрация</button>
+  <button class="secondary" onclick="loginNoPass()">Без пароля</button>
+</div>
+
+<div id="bank" class="hidden">
+  <div class="card">
+    <div class="small" id="userTitle"></div>
+    <div class="balance"><span id="balance">0</span> $</div>
+    <button onclick="clickMoney()">💰 Клик = $1</button>
+  </div>
+
+  <div class="card">
+    <div class="small">Перевод</div>
+    <input id="toUser" placeholder="Кому">
+    <input id="amount" type="number" placeholder="Сумма">
+    <button onclick="transfer()">Отправить</button>
+  </div>
+
+  <div class="card">
+    <div class="small">Кредиты</div>
+    <input id="loanAmount" type="number" placeholder="Сумма кредита">
+    <input id="loanInterest" type="number" placeholder="Процент (%)">
+    <button onclick="takeLoan()">Взять кредит</button>
+    <ul id="loansList" class="history"></ul>
+  </div>
+
+  <div class="card">
+    <div class="small">История операций</div>
+    <ul id="historyList" class="history"></ul>
+  </div>
+
+  <button class="secondary" onclick="logout()">Выйти</button>
+</div>
+
+<div id="adminPanel" class="card admin hidden">
+  <div class="small">👑 Админ-панель</div>
+  <button onclick="becomeMillionaire()">Стать миллионером</button>
+  <input id="adminUser" placeholder="Пользователь">
+  <input id="adminAmount" type="number" placeholder="Сумма">
+  <button onclick="giveMoney()">Дать деньги</button>
+  <button class="danger" onclick="takeMoney()">Отобрать деньги</button>
+  <button class="secondary" onclick="showAll()">Показать базу (JSON)</button>
+  <pre id="allUsers" class="small" style="background:#eee; padding:5px; margin-top:10px;"></pre>
+</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAJtR-ua4GFV7CNwrpeQZLm4W7MuIVjdlE",
+  authDomain: "hehebank-2a84f.firebaseapp.com",
+  databaseURL: "https://hehebank-2a84f-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "hehebank-2a84f",
+  storageBucket: "hehebank-2a84f.firebasestorage.app",
+  messagingSenderId: "85658810632",
+  appId: "1:85658810632:web:a519c82b19039ffc9e14bd"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+let current = null;
+
+async function getAllUsers() {
+  const snapshot = await db.ref('users').once('value');
+  return snapshot.val() || {};
+}
+
+// Регистрация
+async function registerUser(){
+  const l = loginField.value.trim();
+  const p = passwordField.value;
+  if(!l || !p) return alert("Заполните поля");
+  const users = await getAllUsers();
+  if(users[l]) return alert("Пользователь уже существует");
+  await db.ref('users/' + l).set({password:p, balance:0, history:["Аккаунт создан"], loans:[]});
+  alert("Регистрация успешна!");
+}
+
+// Вход
+async function loginUser(){
+  const l = loginField.value.trim();
+  const p = passwordField.value;
+  const users = await getAllUsers();
+  if(!users[l] || (users[l].password && p && users[l].password !== p)){
+    alert("Неверный логин или пароль");
+    return;
+  }
+  current = l;
+  document.getElementById("auth").classList.add("hidden");
+  document.getElementById("bank").classList.remove("hidden");
+  document.getElementById("userTitle").textContent = "Пользователь: " + current;
+  if(current==="admin") document.getElementById("adminPanel").classList.remove("hidden");
+  db.ref('users/' + current).on('value', snapshot => render(snapshot.val()));
+}
+
+// Вход без пароля
+async function loginNoPass(){
+  const l = loginField.value.trim();
+  const users = await getAllUsers();
+  if(!users[l]) return alert("Пользователя нет");
+  current = l;
+  document.getElementById("auth").classList.add("hidden");
+  document.getElementById("bank").classList.remove("hidden");
+  document.getElementById("userTitle").textContent = "Пользователь: " + current;
+  if(current==="admin") document.getElementById("adminPanel").classList.remove("hidden");
+  db.ref('users/' + current).on('value', snapshot => render(snapshot.val()));
+}
+
+// Отображение данных
+function render(data){
+  document.getElementById("balance").textContent = data.balance;
+  const historyList = document.getElementById("historyList");
+  historyList.innerHTML = "";
+  if(data.history) data.history.slice().reverse().forEach(h=>{
+    const li = document.createElement("li"); li.textContent = h; historyList.appendChild(li);
+  });
+  const loansList = document.getElementById("loansList");
+  loansList.innerHTML = "";
+  if(data.loans) data.loans.forEach(l=>{
+    const li = document.createElement("li");
+    li.textContent = `💸 ${l.amount}$ (Процент: ${l.interest}%)`;
+    loansList.appendChild(li);
+  });
+}
+
+// Кликер
+async function clickMoney(){
+  const ref = db.ref('users/' + current);
+  const snap = await ref.once('value');
+  const data = snap.val();
+  data.balance++; data.history.push("+1$ (клик)");
+  await ref.set(data);
+}
+
+// Переводы
+async function transfer(){
+  const to = toUser.value.trim();
+  const amountVal = parseInt(amount.value);
+  const users = await getAllUsers();
+  if(!users[to] || amountVal <=0 || users[current].balance<amountVal) return alert("Ошибка перевода");
+  users[current].balance -= amountVal; users[current].history.push(`-${amountVal}$ → ${to}`);
+  users[to].balance += amountVal; users[to].history.push(`+${amountVal}$ ← ${current}`);
+  await db.ref('users/' + current).set(users[current]);
+  await db.ref('users/' + to).set(users[to]);
+}
+
+// Кредиты
+async function takeLoan(){
+  const amt = parseInt(loanAmount.value);
+  const pct = parseInt(loanInterest.value);
+  if(!amt || !pct) return alert("Введите сумму и процент");
+  const ref = db.ref('users/' + current);
+  const snap = await ref.once('value'); const data = snap.val();
+  data.balance += amt;
+  if(!data.loans) data.loans = [];
+  data.loans.push({amount: amt, interest: pct});
+  data.history.push(`💰 Взял кредит: ${amt}$ под ${pct}%`);
+  await ref.set(data);
+}
+
+// Админ-функции
+async function becomeMillionaire(){
+  const ref = db.ref('users/' + current);
+  const snap = await ref.once('value'); const data = snap.val();
+  data.balance = 1000000; data.history.push("💎 Стал миллионером");
+  await ref.set(data);
+}
+async function giveMoney(){
+  const user = adminUser.value.trim(); const amt = parseInt(adminAmount.value);
+  if(!user || !amt) return;
+  const snap = await db.ref('users/' + user).once('value'); const data = snap.val();
+  data.balance += amt; data.history.push(`+${amt}$ от админа`);
+  await db.ref('users/' + user).set(data);
+}
+async function takeMoney(){
+  const user = adminUser.value.trim(); const amt = parseInt(adminAmount.value);
+  if(!user || !amt) return;
+  const snap = await db.ref('users/' + user).once('value'); const data = snap.val();
+  data.balance -= amt; data.history.push(`-${amt}$ админ забрал`);
+  await db.ref('users/' + user).set(data);
+}
+async function showAll(){
+  const users = await getAllUsers();
+  document.getElementById("allUsers").textContent = JSON.stringify(users, null,2);
+}
+function logout(){ location.reload(); }
+</script>
+</body>
+  </html>
